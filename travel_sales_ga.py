@@ -57,10 +57,15 @@ class GA(object):
             # 用 square 來做平方(整個陣列都平方)
             # 用 sqrt 來開根號 (畢氏定理啦)
             # 用 sum 把全部的點的距離連起來
-            prio[i] = total_distance[i] * \
-                ((1.0 - (0.05 * pr[0])))  # 優先權積分越高在距離上會有減免（積分*5%）
+            if not weather_calc[i]:
+                prio[i] = total_distance[i] * \
+                    ((1.0 - (0.05 * pr[0])))  # 優先權積分越高在距離上會有減免（積分*5%）
+            else:
+                prio[i] = total_distance[i] * \
+                    ((1.0 - (0.05 * pr[0]))) * \
+                    1.005  # 優先權積分越高在距離上會有減免（積分*5%）(雨天模式，距離*1.1)
         fitness = np.exp(self.DNA_size * 2 / prio)  # 擴大fitness差異
-        fitness[weather_calc] = fitness[weather_calc] * 1.1  # 若是雨天就*1.1
+        fitness[weather_calc] = fitness[weather_calc] * 1.0659  # 若是雨天就*1.1
         return fitness, total_distance, weather_calc
 
     def select(self, fitness):
