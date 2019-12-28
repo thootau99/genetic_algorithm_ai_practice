@@ -22,9 +22,10 @@ class GA(object):
                               for _ in range(pop_size)])
         self.rain_rate = rain_rate
 
-    def translateDNA(self, DNA, city_position):     # get cities' coord in order
+    def translateDNA(self, DNA, city_position, priority):     # get cities' coord in order
         line_x = np.empty_like(DNA, dtype=np.float64)
         line_y = np.empty_like(DNA, dtype=np.float64)
+        prio = np.empty_like(DNA, dtype=np.int)
         for i, d in enumerate(DNA):
             city_coord = city_position[d]
             # city_coord 內中全部行的第一個元素填到 line_x[i, :]
@@ -32,20 +33,33 @@ class GA(object):
             # city_coord 內中全部行的第二個元素甜到 line_y[i. :]
             line_y[i, :] = city_coord[:, 1]
             # 結論：len(city_coord[:]) == 2,  分別儲存x, y
-        return line_x, line_y
+            prio[i] = self.priorityCalc(d, priority)
+        return line_x, line_y, prio
 
-    def get_fitness(self, line_x, line_y):
+    def priorityCalc(self, inputArray, priority):
+        priority_copy = priority.copy()  # copy 一份優先權清單
+        score = 0  # 初始化積分
+        for i in inputArray:
+            if priority_copy[i] > 0:  # 假如積分不小於零就加
+                score = score + priority_copy[i]
+            priority_copy[:] = priority_copy[:] - 1  # 跑過一輪後全部的優先權 -1
+        return score
+
+    def get_fitness(self, line_x, line_y, priority):
         total_distance = np.empty((line_x.shape[0],), dtype=np.float64)
+        prio = np.empty((priority.shape[0],), dtype=np.float64)  # 產生陣列放優先權積分
         weather_calc = np.random.randint(0, 2, self.pop_size).astype(
             np.bool)  # 產生是否為雨天
-        for i, (xs, ys) in enumerate(zip(line_x, line_y)):
+        for i, (xs, ys, pr) in enumerate(zip(line_x, line_y, priority)):
             total_distance[i] = np.sum(
                 np.sqrt(np.square(np.diff(xs)) + np.square(np.diff(ys))))  # 計算距離
             # 用 diff 來xs[index+1] - xs[index]... 之類的方式來變魔術
             # 用 square 來做平方(整個陣列都平方)
             # 用 sqrt 來開根號 (畢氏定理啦)
             # 用 sum 把全部的點的距離連起來
-        fitness = np.exp(self.DNA_size * 2 / total_distance)  # 擴大fitness差異
+            prio[i] = total_distance[i] * \
+                ((1.0 - (0.05 * pr[0])))  # 優先權積分越高在距離上會有減免（積分*5%）
+        fitness = np.exp(self.DNA_size * 2 / prio)  # 擴大fitness差異
         fitness[weather_calc] = fitness[weather_calc] * 1.1  # 若是雨天就*1.1
         return fitness, total_distance, weather_calc
 
@@ -96,12 +110,16 @@ class GA(object):
 class TravelSalesPerson(object):
     def __init__(self, n_cities):
         self.city_position = np.random.rand(n_cities, 2)
+        self.priority = np.random.randint(0, high=4, size=n_cities)
         plt.ion()
 
     def plotting(self, lx, ly, total_d, weather):
         plt.cla()
-        plt.scatter(self.city_position[:, 0].T,
-                    self.city_position[:, 1].T, s=150, c='k')
+        plt.scatter(self.city_position[:, 0],
+                    self.city_position[:, 1], s=30, c='c')
+        for i, txt in enumerate(self.priority):
+            plt.annotate(
+                txt, (self.city_position[i, 0], self.city_position[i, 1]))
         plt.scatter(lx[0], ly[0], s=150, c='r')  # 標紅色＝起點
 
         plt.plot(lx.T, ly.T, 'r-')
@@ -119,9 +137,9 @@ ga = GA(DNA_size=N_CITIES, cross_rate=CROSS_RATE,
 
 env = TravelSalesPerson(N_CITIES)
 for generation in range(N_GENERATIONS):
-    lx, ly = ga.translateDNA(
-        ga.pop, env.city_position)
-    fitness, total_distance, weather = ga.get_fitness(lx, ly)
+    lx, ly, priority = ga.translateDNA(
+        ga.pop, env.city_position, env.priority)
+    fitness, total_distance, weather = ga.get_fitness(lx, ly, priority)
     ga.evolve(fitness)
     best_idx = np.argmax(fitness)  # fitness中最好的那個
     if generation % 50 == 0:
