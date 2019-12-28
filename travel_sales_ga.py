@@ -9,18 +9,18 @@ CROSS_RATE = 0.2
 MUTATE_RATE = 0.05
 POP_SIZE = 200
 N_GENERATIONS = 500
-
-print(np.__version__)
+RAIN_RATE = 0.1
 
 
 class GA(object):
-    def __init__(self, DNA_size, cross_rate, mutation_rate, pop_size, ):
+    def __init__(self, DNA_size, cross_rate, mutation_rate, pop_size, rain_rate):
         self.DNA_size = DNA_size
         self.cross_rate = cross_rate
         self.mutate_rate = mutation_rate
         self.pop_size = pop_size
         self.pop = np.vstack([np.random.permutation(DNA_size)
                               for _ in range(pop_size)])
+        self.rain_rate = rain_rate
 
     def translateDNA(self, DNA, city_position):     # get cities' coord in order
         line_x = np.empty_like(DNA, dtype=np.float64)
@@ -36,15 +36,18 @@ class GA(object):
 
     def get_fitness(self, line_x, line_y):
         total_distance = np.empty((line_x.shape[0],), dtype=np.float64)
+        weather_calc = np.random.randint(0, 2, self.pop_size).astype(
+            np.bool)  # 產生是否為雨天
         for i, (xs, ys) in enumerate(zip(line_x, line_y)):
             total_distance[i] = np.sum(
                 np.sqrt(np.square(np.diff(xs)) + np.square(np.diff(ys))))  # 計算距離
             # 用 diff 來xs[index+1] - xs[index]... 之類的方式來變魔術
-            # 用 square 來做平方(整個陣列都平方啦)
+            # 用 square 來做平方(整個陣列都平方)
             # 用 sqrt 來開根號 (畢氏定理啦)
-        print(total_distance)
+            # 用 sum 把全部的點的距離連起來
         fitness = np.exp(self.DNA_size * 2 / total_distance)  # 擴大fitness差異
-        return fitness, total_distance
+        fitness[weather_calc] = fitness[weather_calc] * 1.1  # 若是雨天就*1.1
+        return fitness, total_distance, weather_calc
 
     def select(self, fitness):
         idx = np.random.choice(np.arange(
@@ -68,6 +71,10 @@ class GA(object):
             # 連結 產生DNA
         return parent
 
+    def rain(self):
+        if np.random.rand() < self.rain_rate:
+            return True
+
     def mutate(self, child):
         for point in range(self.DNA_size):
             if np.random.rand() < self.mutate_rate:
@@ -83,7 +90,6 @@ class GA(object):
         for parent in pop:  # for every parent
             child = self.crossover(parent, pop_copy)  # 交配ㄌ
             child = self.mutate(child)  # 突變判定
-            parent[:] = child  # parent = child
         self.pop = pop  # 在上面選到的高fitness pop 成為新的 pop
 
 
@@ -92,7 +98,7 @@ class TravelSalesPerson(object):
         self.city_position = np.random.rand(n_cities, 2)
         plt.ion()
 
-    def plotting(self, lx, ly, total_d):
+    def plotting(self, lx, ly, total_d, weather):
         plt.cla()
         plt.scatter(self.city_position[:, 0].T,
                     self.city_position[:, 1].T, s=150, c='k')
@@ -101,24 +107,27 @@ class TravelSalesPerson(object):
         plt.plot(lx.T, ly.T, 'r-')
         plt.text(-0.05, -0.05, "Total distance=%.2f" %
                  total_d, fontdict={'size': 20, 'color': 'red'})
+        plt.text(-0.10, -0.10, "Rain=%r" %
+                 weather, fontdict={'size': 20, 'color': 'red'})
         plt.xlim((-0.1, 1.1))
         plt.ylim((-0.1, 1.1))
         plt.pause(0.01)
 
 
 ga = GA(DNA_size=N_CITIES, cross_rate=CROSS_RATE,
-        mutation_rate=MUTATE_RATE, pop_size=POP_SIZE)
+        mutation_rate=MUTATE_RATE, pop_size=POP_SIZE, rain_rate=RAIN_RATE)
 
 env = TravelSalesPerson(N_CITIES)
 for generation in range(N_GENERATIONS):
     lx, ly = ga.translateDNA(
         ga.pop, env.city_position)
-    fitness, total_distance = ga.get_fitness(lx, ly)
+    fitness, total_distance, weather = ga.get_fitness(lx, ly)
     ga.evolve(fitness)
-    best_idx = np.argmax(fitness)
+    best_idx = np.argmax(fitness)  # fitness中最好的那個
     if generation % 50 == 0:
         print('Gen:', generation, '| best fit: %.2f' % fitness[best_idx],)
 
-    env.plotting(lx[best_idx], ly[best_idx], total_distance[best_idx])
+    env.plotting(lx[best_idx], ly[best_idx],
+                 total_distance[best_idx], weather[best_idx])
 plt.ioff()
 plt.show()
