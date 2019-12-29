@@ -160,7 +160,7 @@ class TravelSalesPerson(object):
         print(self.terrain)
         plt.ion()
 
-    def plotting(self, lx, ly, total_d, weather):
+    def plotting(self, lx, ly, total_d, weather, solution):
         plt.cla()
         for i, txt in enumerate(self.priority):
             plt.annotate(
@@ -173,13 +173,13 @@ class TravelSalesPerson(object):
                 plt.scatter(self.city_position[i, 0],
                             self.city_position[i, 1], s=50, c='#4D5139')
 
-        plt.scatter(lx[0], ly[0], s=150, c='r')  # 標紅色＝起點
-
         plt.plot(lx.T, ly.T, 'r-')
         plt.text(-0.05, -0.05, "Total distance=%.2f" %
                  total_d, fontdict={'size': 20, 'color': 'red'})
-        plt.text(-0.10, -0.10, "Rain=%r" %
-                 weather, fontdict={'size': 20, 'color': 'red'})
+        plt.text(-0.05, -0.15, "Rain=%r" %
+                 weather, fontdict={'size': 15, 'color': 'red'})
+        plt.text(-0.05, -0.25, "Solution=%s" %
+                 solution, fontdict={'size': 12, 'color': 'red'})
         plt.xlim((-0.1, 1.1))
         plt.ylim((-0.1, 1.1))
         plt.pause(0.01)
@@ -200,6 +200,6 @@ for generation in range(N_GENERATIONS):
         print('Gen:', generation, '| best fit: %.2f' % fitness[best_idx],)
 
     env.plotting(lx[best_idx], ly[best_idx],
-                 total_distance[best_idx], weather[best_idx])
+                 total_distance[best_idx], weather[best_idx], ga.pop[best_idx])
 plt.ioff()
 plt.show()
