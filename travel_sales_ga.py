@@ -165,6 +165,8 @@ class TravelSalesPerson(object):
         for i, txt in enumerate(self.priority):
             plt.annotate(
                 txt, (self.city_position[i, 0], self.city_position[i, 1]))
+            # plt.annotate(
+            #     i, (self.city_position[i, 0]+0.02, self.city_position[i, 1]+0.05))
         for i, terrain in enumerate(self.terrain):
             if terrain == True:
                 plt.scatter(self.city_position[i, 0],
@@ -178,8 +180,8 @@ class TravelSalesPerson(object):
                  total_d, fontdict={'size': 20, 'color': 'red'})
         plt.text(-0.05, -0.15, "Rain=%r" %
                  weather, fontdict={'size': 15, 'color': 'red'})
-        plt.text(-0.05, -0.25, "Solution=%s" %
-                 solution, fontdict={'size': 12, 'color': 'red'})
+        # plt.text(-0.15, -0.25, "Solution=%s" %
+        #          solution, fontdict={'size': 12, 'color': 'red'})
         plt.xlim((-0.1, 1.1))
         plt.ylim((-0.1, 1.1))
         plt.pause(0.01)
@@ -187,7 +189,8 @@ class TravelSalesPerson(object):
 
 ga = GA(DNA_size=N_CITIES, cross_rate=CROSS_RATE,
         mutation_rate=MUTATE_RATE, pop_size=POP_SIZE, rain_rate=RAIN_RATE)
-
+temp_gen = 0
+temp_fitness = 0
 env = TravelSalesPerson(N_CITIES)
 for generation in range(N_GENERATIONS):
     lx, ly, priority, terrain = ga.translateDNA(
@@ -196,9 +199,12 @@ for generation in range(N_GENERATIONS):
         lx, ly, priority, terrain)
     ga.evolve(fitness)
     best_idx = np.argmax(fitness)  # fitness中最好的那個
-    if generation % 50 == 0:
+    if fitness[best_idx] > temp_fitness:
+        temp_gen = generation
+        temp_fitness = fitness[best_idx]
+    if generation % 499 == 0:
         print('Gen:', generation, '| best fit: %.2f' % fitness[best_idx],)
-
+        print('最佳基因在', temp_gen, '代已產生')
     env.plotting(lx[best_idx], ly[best_idx],
                  total_distance[best_idx], weather[best_idx], ga.pop[best_idx])
 plt.ioff()
